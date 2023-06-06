@@ -1,0 +1,141 @@
+_dim_: 256
+
+model:
+  heads:
+    object:
+      type: BevformerHead
+      _dim_: 256
+      num_query: 900
+      num_classes: 10
+      sync_cls_avg_factor: True
+      with_box_refine: True
+      as_two_stage: False
+      transformer: 
+        type: PerceptionTransformer
+        rotate_prev_bev: False 
+        use_shift: False
+        use_can_bus: False
+        embed_dims: ${_dim_}
+        encoder: 
+          type: BEVFormerEncoder
+          num_layers: 6
+          pc_range: ${point_cloud_range}
+          num_points_in_pillar: 4
+          return_intermediate: False
+          transformerlayers:
+            type: BEVFormerLayer
+            attn_cfgs: 
+            -
+              type: TemporalSelfAttention
+              embed_dims: ${_dim_}
+              num_levels: 1
+            -
+              type: SpatialCrossAttention
+              pc_range: ${point_cloud_range}
+              deformable_attention: 
+                type: MSDeformableAttention3D
+                embed_dims: ${_dim_}
+                num_points: 8
+                num_levels: 1
+              embed_dims: ${_dim_}
+            feedforward_channels: 512
+            ffn_dropout: 0.1
+            operation_order: 
+              - self_attn
+              - norm
+              - cross_attn
+              - norm
+              - ffn
+              - norm
+        decoder:
+          type: DetectionTransformerDecoder
+          num_layers: 6
+          return_intermediate: True
+          transformerlayers:
+            type: DetrTransformerDecoderLayer
+            attn_cfgs:
+            -
+              type: MultiheadAttention
+              embed_dims: ${_dim_}
+              num_heads: 8
+              dropout: 0.1
+            -
+              type: CustomMSDeformableAttention
+              embed_dims: ${_dim_}
+              num_levels: 1
+            feedforward_channels: 512
+            ffn_dropout: 0.1
+            operation_order: 
+              - self_attn
+              - norm
+              - cross_attn
+              - norm
+              - ffn
+              - norm
+      bbox_coder: 
+        type: NMSFreeCoder
+        post_center_range: [-61.2, -61.2, -10.0, 61.2, 61.2, 10.0]
+        pc_range: ${point_cloud_range}
+        max_num: 300
+        voxel_size: [0.2,0.2,8]
+        num_classes: 10
+      positional_encoding:
+        type: LearnedPositionalEncoding
+        num_feats: 128
+        row_num_embed: 180
+        col_num_embed: 180
+      loss_cls: 
+        type: FocalLoss
+        use_sigmoid: true
+        gamma: 2.0
+        alpha: 0.25
+        reduction: mean
+        loss_weight: 1.0
+      loss_bbox:
+        type: L1Loss
+        reduction: mean
+        loss_weight: 0.25
+      loss_iou:
+        type: GIoULoss
+        loss_weight: 0
+      train_cfg:
+        assigner:
+          type: HungarianAssigner3D
+          iou_calculator:
+            type: BboxOverlaps3D
+            coordinate: lidar
+          cls_cost:
+            type: FocalLossCost
+            gamma: 2.0
+            alpha: 0.25
+            weight: 1.0
+          reg_cost:
+            type: BBox3DL1Cost
+            weight: 0.25
+          iou_cost:
+            type: IoUCost
+            weight: 0
+  train_cfg: 
+    pts: 
+      grid_size : [512, 512, 1]
+      voxel_size: [0.2,0.2,8]
+      point_cloud_range: ${point_cloud_range}
+      out_size_factor: 4
+      assigner:
+          type: HungarianAssigner3D
+          iou_calculator:
+            type: BboxOverlaps3D
+            coordinate: lidar
+          cls_cost:
+            type: FocalLossCost
+            gamma: 2.0
+            alpha: 0.25
+            weight: 1.0
+          reg_cost:
+            type: BBox3DL1Cost
+            weight: 0.25
+          iou_cost:
+            type: IoUCost
+            weight: 0
+    
+
