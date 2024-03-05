@@ -5,62 +5,44 @@ log_config = dict(
     interval=50,
     hooks=[dict(type='TextLoggerHook'),
            dict(type='TensorboardLoggerHook')])
-# 加载点云数据的预训练权重
+# load checkpoint
 load_from = 'pretrained/lidar-only-det.pth'
 resume_from = None
 cudnn_benchmark = False
-# 训练精度
+# float
 fp16 = dict(loss_scale=dict(growth_interval=2000))
-# 训练轮数
 max_epochs = 24
-#重写的每一轮的runner
+# runner
 runner = dict(type='CustomEpochBasedRunner', max_epochs=24)
-#数据集类型，定义数据读入的方式，根据index读json中对应的元数据，以及一些对齐矩阵
 dataset_type = 'NuScenesDataset'
-#数据根目录，这里bevfusion的数据集与bevformer的数据集的annotation不一样，主要在于单引号和双引号
-dataset_root = '/data/zhangdi/nuscenes/'
+dataset_root = '/data/nuscenes/'
 gt_paste_stop_epoch = -1
-# 点云数据读取参数
 reduce_beams = 32
 load_dim = 5
 use_dim = 5
 load_augmented = None
-# 场景感知的范围
-# 即使没有点云数据的输入，依旧需要这个参数进行感知范围框定，这样便于进行场景分割
+# perception range
 point_cloud_range = [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]
-# 场景分割的颗粒度
 voxel_size = [0.1, 0.1, 0.2]
-
-# pts特殊参数 
 pts_point_cloud_range=[-54.0, -54.0, -5.0, 54.0, 54.0, 3.0],
 pts_voxel_size=[0.075, 0.075, 0.2]
-# 读取的图像数据尺寸
 image_size = [256, 704]
-#数据增强的参数
 augment2d = dict(
     resize=[[0.38, 0.55], [0.48, 0.48]],
     rotate=[-5.4, 5.4],
     gridmask=dict(prob=0.0, fixed_prob=True))
 augment3d = dict(
     scale=[0.9, 1.1], rotate=[-0.78539816, 0.78539816], translate=0.5)
-# bevfusion对nuscenens数据进行10分类
 object_classes = [
     'car', 'truck', 'construction_vehicle', 'bus', 'trailer', 'barrier',
     'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
 ]
-# bevfusion 对bev特征进行了数据增强，这里我们并没有进行采用
-map_classes = [
-    'drivable_area', 'ped_crossing', 'walkway', 'stop_line', 'carpark_area',
-    'divider'
-]
-# 输入数据的模态，点云、图像、radar、或者更多的额外训练数据，can_bus数据等
 input_modality = dict(
     use_lidar=True,
     use_camera=True,
     use_radar=False,
     use_map=False,
     use_external=False)
-# 数据预处理
 train_pipeline = [
     dict(type='LoadMultiViewImageFromFiles', to_float32=True),
     dict(
@@ -88,8 +70,8 @@ train_pipeline = [
         type='ObjectPaste',
         stop_epoch=-1,
         db_sampler=dict(
-            dataset_root='/data/zhangdi/nuscenes/',
-            info_path='/data/zhangdi/nuscenes/nuscenes_dbinfos_train.pkl',
+            dataset_root='/data/nuscenes/',
+            info_path='/data/nuscenes/nuscenes_dbinfos_train.pkl',
             rate=1.0,
             prepare=dict(
                 filter_by_difficulty=[-1],
@@ -134,21 +116,6 @@ train_pipeline = [
         rot_lim=[-5.4, 5.4],
         rand_flip=True,
         is_train=True),
-    dict(
-        type='GlobalRotScaleTrans',
-        resize_lim=[0.9, 1.1],
-        rot_lim=[-0.78539816, 0.78539816],
-        trans_lim=0.5,
-        is_train=True),
-    dict(
-        type='LoadBEVSegmentation',
-        dataset_root='/data/zhangdi/nuscenes/',
-        xbound=[-50.0, 50.0, 0.5],
-        ybound=[-50.0, 50.0, 0.5],
-        classes=[
-            'drivable_area', 'ped_crossing', 'walkway', 'stop_line',
-            'carpark_area', 'divider'
-        ]),
     dict(type='RandomFlip3D'),
     dict(
         type='PointsRangeFilter',
@@ -192,7 +159,6 @@ train_pipeline = [
             'camera2lidar', 'lidar2image', 'img_aug_matrix', 'lidar_aug_matrix'
         ])
 ]
-# 测试数据集的数据预处理方式
 test_pipeline = [
     dict(type='LoadMultiViewImageFromFiles', to_float32=True),
     dict(
@@ -231,15 +197,6 @@ test_pipeline = [
         trans_lim=0.0,
         is_train=False),
     dict(
-        type='LoadBEVSegmentation',
-        dataset_root='/data/zhangdi/nuscenes/',
-        xbound=[-50.0, 50.0, 0.5],
-        ybound=[-50.0, 50.0, 0.5],
-        classes=[
-            'drivable_area', 'ped_crossing', 'walkway', 'stop_line',
-            'carpark_area', 'divider'
-        ]),
-    dict(
         type='PointsRangeFilter',
         point_cloud_range=[-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]),
     dict(
@@ -260,7 +217,6 @@ test_pipeline = [
             'camera2lidar', 'lidar2image', 'img_aug_matrix', 'lidar_aug_matrix'
         ])
 ]
-# 数据读入的方式，定义 batch_size = samples_per_gpu * workers_per_gpu * num_of_graphics_card
 data = dict(
     samples_per_gpu=1,
     workers_per_gpu=1,
@@ -268,8 +224,8 @@ data = dict(
         type='CBGSDataset',
         dataset=dict(
             type='NuScenesDataset',
-            dataset_root='/data/zhangdi/nuscenes/',
-            ann_file='/data/zhangdi/nuscenes/nuscenes_infos_train.pkl',
+            dataset_root='/data/nuscenes/',
+            ann_file='/data/nuscenes/nuscenes_infos_train.pkl',
             pipeline=[
                 dict(type='LoadMultiViewImageFromFiles', to_float32=True),
                 dict(
@@ -297,9 +253,9 @@ data = dict(
                     type='ObjectPaste',
                     stop_epoch=-1,
                     db_sampler=dict(
-                        dataset_root='/data/zhangdi/nuscenes/',
+                        dataset_root='/data/nuscenes/',
                         info_path=
-                        '/data/zhangdi/nuscenes/nuscenes_dbinfos_train.pkl',
+                        '/data/nuscenes/nuscenes_dbinfos_train.pkl',
                         rate=1.0,
                         prepare=dict(
                             filter_by_difficulty=[-1],
@@ -350,15 +306,6 @@ data = dict(
                     rot_lim=[-0.78539816, 0.78539816],
                     trans_lim=0.5,
                     is_train=True),
-                dict(
-                    type='LoadBEVSegmentation',
-                    dataset_root='/data/zhangdi/nuscenes/',
-                    xbound=[-50.0, 50.0, 0.5],
-                    ybound=[-50.0, 50.0, 0.5],
-                    classes=[
-                        'drivable_area', 'ped_crossing', 'walkway',
-                        'stop_line', 'carpark_area', 'divider'
-                    ]),
                 dict(type='RandomFlip3D'),
                 dict(
                     type='PointsRangeFilter',
@@ -413,10 +360,6 @@ data = dict(
                 'barrier', 'motorcycle', 'bicycle', 'pedestrian',
                 'traffic_cone'
             ],
-            map_classes=[
-                'drivable_area', 'ped_crossing', 'walkway', 'stop_line',
-                'carpark_area', 'divider'
-            ],
             modality=dict(
                 use_lidar=True,
                 use_camera=True,
@@ -428,8 +371,8 @@ data = dict(
             box_type_3d='LiDAR')),
     val=dict(
         type='NuScenesDataset',
-        dataset_root='/data/zhangdi/nuscenes/',
-        ann_file='/data/zhangdi/nuscenes/nuscenes_infos_val.pkl',
+        dataset_root='/data/nuscenes/',
+        ann_file='/data/nuscenes/nuscenes_infos_val.pkl',
         pipeline=[
             dict(type='LoadMultiViewImageFromFiles', to_float32=True),
             dict(
@@ -468,15 +411,6 @@ data = dict(
                 trans_lim=0.0,
                 is_train=False),
             dict(
-                type='LoadBEVSegmentation',
-                dataset_root='/data/zhangdi/nuscenes/',
-                xbound=[-50.0, 50.0, 0.5],
-                ybound=[-50.0, 50.0, 0.5],
-                classes=[
-                    'drivable_area', 'ped_crossing', 'walkway', 'stop_line',
-                    'carpark_area', 'divider'
-                ]),
-            dict(
                 type='PointsRangeFilter',
                 point_cloud_range=[-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]),
             dict(
@@ -505,10 +439,6 @@ data = dict(
         object_classes=[
             'car', 'truck', 'construction_vehicle', 'bus', 'trailer',
             'barrier', 'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
-        ],
-        map_classes=[
-            'drivable_area', 'ped_crossing', 'walkway', 'stop_line',
-            'carpark_area', 'divider'
         ],
         modality=dict(
             use_lidar=True,
@@ -520,8 +450,8 @@ data = dict(
         box_type_3d='LiDAR'),
     test=dict(
         type='NuScenesDataset',
-        dataset_root='/data/zhangdi/nuscenes/',
-        ann_file='/data/zhangdi/nuscenes/nuscenes_infos_val.pkl',
+        dataset_root='/data/nuscenes/',
+        ann_file='/data/nuscenes/nuscenes_infos_val.pkl',
         pipeline=[
             dict(type='LoadMultiViewImageFromFiles', to_float32=True),
             dict(
@@ -560,15 +490,6 @@ data = dict(
                 trans_lim=0.0,
                 is_train=False),
             dict(
-                type='LoadBEVSegmentation',
-                dataset_root='/data/zhangdi/nuscenes/',
-                xbound=[-50.0, 50.0, 0.5],
-                ybound=[-50.0, 50.0, 0.5],
-                classes=[
-                    'drivable_area', 'ped_crossing', 'walkway', 'stop_line',
-                    'carpark_area', 'divider'
-                ]),
-            dict(
                 type='PointsRangeFilter',
                 point_cloud_range=[-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]),
             dict(
@@ -598,10 +519,6 @@ data = dict(
             'car', 'truck', 'construction_vehicle', 'bus', 'trailer',
             'barrier', 'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
         ],
-        map_classes=[
-            'drivable_area', 'ped_crossing', 'walkway', 'stop_line',
-            'carpark_area', 'divider'
-        ],
         modality=dict(
             use_lidar=True,
             use_camera=True,
@@ -612,7 +529,7 @@ data = dict(
         box_type_3d='LiDAR'))
 evaluation = dict(interval=1, pipeline=test_pipeline)
 model = dict(
-    type='BEVFusion',
+    type='FormFusion',
     encoders=dict(
         camera=dict(
             neck=dict(
@@ -624,17 +541,6 @@ model = dict(
                 norm_cfg=dict(type='BN2d', requires_grad=True),
                 act_cfg=dict(type='ReLU', inplace=True),
                 upsample_cfg=dict(mode='bilinear', align_corners=False)),
-            #vtransform=dict( #没有采用LSS
-            #    type='DepthLSSTransform',
-            #    in_channels=256,
-            #    out_channels=80,
-            #    image_size=[256, 704],
-            #    feature_size=[32, 88],
-            #    xbound=[-51.2, 51.2, 0.4],
-            #    ybound=[-51.2, 51.2, 0.4],
-            #    zbound=[-10.0, 10.0, 20.0],
-            #    dbound=[1.0, 60.0, 0.5],
-            #    downsample=2),
             backbone=dict(
                 type='SwinTransformer',
                 embed_dims=96,
@@ -674,11 +580,10 @@ model = dict(
                 encoder_paddings=[[0, 0, 1], [0, 0, 1], [0, 0, [1, 1, 0]],
                                   [0, 0]],
                 block_type='basicblock'))),
-    fuser=None, #省略中间fuser部分
-    heads=dict( # 模型结构的关键
-        map=None, #不进行bev_map的增强操作
+    fuser=None, 
+    heads=dict( 
         object=dict(
-            type='BevformerHead',
+            type='FormfusionHead',
             _dim_=256,
             num_query=900,
             num_classes=10,
@@ -687,19 +592,19 @@ model = dict(
             as_two_stage=False,
             in_channels=[80, 256],
             transformer=dict(
-                type='PerceptionTransformer',
+                type='FormerfusionTransformer',
                 rotate_prev_bev=False,
                 use_shift=False,
                 use_can_bus=False,
                 embed_dims=256,
                 encoder=dict(
-                    type='BEVFormerEncoder',
+                    type='FormerfusionEncoder',
                     num_layers=6,
                     pc_range=[-51.2, -51.2, -5.0, 51.2, 51.2, 3.0],
                     num_points_in_pillar=4,
                     return_intermediate=False,
                     transformerlayers=dict(
-                        type='BEVFormerLayer',
+                        type='FormerfusionLayer',
                         attn_cfgs=[
                             dict(
                                 type='TemporalSelfAttention',
@@ -791,7 +696,7 @@ model = dict(
                     type='FocalLossCost', gamma=2.0, alpha=0.25, weight=1.0),
                 reg_cost=dict(type='BBox3DL1Cost', weight=0.25),
                 iou_cost=dict(type='IoUCost', weight=0)))),
-    decoder=None #不考虑额外的decoder部分,原先bevfusion的部署，是有一个额外的decoder进行解码，现在decoder直接融入到head中
+    decoder=None 
     )
 _dim_ = 256
 optimizer = dict(type='AdamW', lr=0.0002, weight_decay=0.01)
@@ -803,5 +708,3 @@ lr_config = dict(
     warmup_ratio=0.33333333,
     min_lr_ratio=0.001)
 momentum_config = dict(policy='cyclic')
-run_dir = 'runs/0219'
-#resume_from = 'runs/0109/latest.pth'
